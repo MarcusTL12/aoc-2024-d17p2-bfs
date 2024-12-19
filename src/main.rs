@@ -2,11 +2,13 @@
 
 use std::{
     env,
+    fs::read_to_string,
     simd::{Mask, Simd, cmp::SimdPartialEq},
     time::Instant,
 };
 
 use arrayvec::ArrayVec;
+use home::home_dir;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 const N: usize = 32;
@@ -24,27 +26,25 @@ fn get_out(a: Simd<u64, N>) -> Simd<u64, N> {
     b ^ c
 }
 
-const PROGRAM: [u8; 16] = [2, 4, 1, 2, 7, 5, 1, 3, 4, 4, 5, 5, 0, 3, 3, 0];
-
 #[inline(always)]
-fn check_a(mut a: Simd<u64, N>) -> Mask<i64, N> {
+fn check_a(program: &[u8], mut a: Simd<u64, N>) -> Mask<i64, N> {
     let mut i = 0;
 
     let mut status = Mask::splat(true);
 
-    while i < PROGRAM.len() && status.any() && !a.simd_eq(Simd::splat(0)).all()
+    while i < program.len() && status.any() && !a.simd_eq(Simd::splat(0)).all()
     {
         let o = get_out(a);
-        status &= o.simd_eq(Simd::splat(PROGRAM[i] as u64));
+        status &= o.simd_eq(Simd::splat(program[i] as u64));
         a >>= Simd::splat(3);
 
         i += 1;
     }
 
-    status & a.simd_eq(Simd::splat(0)) & Mask::splat(i == PROGRAM.len())
+    status & a.simd_eq(Simd::splat(0)) & Mask::splat(i == program.len())
 }
 
-fn check_range(lower: u64, n_vecs: u64) -> Option<u64> {
+fn check_range(program: &[u8], lower: u64, n_vecs: u64) -> Option<u64> {
     let strider = Simd::from_array(
         (0..N as u64)
             .collect::<ArrayVec<_, N>>()
@@ -56,7 +56,7 @@ fn check_range(lower: u64, n_vecs: u64) -> Option<u64> {
         .into_par_iter()
         .map(|n| Simd::splat(n * N as u64 + lower) + strider)
         .find_map_first(|a| {
-            let o = check_a(a);
+            let o = check_a(program, a);
 
             o.any().then_some((a, o))
         })?;
@@ -89,9 +89,23 @@ fn main() {
         "Checking {n_vecs} vectors of width {N} in range {lower}..{upper}"
     );
 
+    let path = home_dir().unwrap().join("aoc-input/2024/day17/input");
+
+    let input = read_to_string(path).unwrap();
+    let tmp: Vec<_> = input
+        .lines()
+        .nth(4)
+        .unwrap()
+        .split_once(" ")
+        .unwrap()
+        .1
+        .split(',')
+        .map(|x| x.parse().unwrap())
+        .collect();
+
     let t = Instant::now();
 
-    let ans = check_range(lower, n_vecs);
+    let ans = check_range(&tmp, lower, n_vecs);
 
     let t = t.elapsed();
     println!("Solving took: {t:?}");
