@@ -1,0 +1,6 @@
+[package]
+name = "aoc-2024-d17p2-bfs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
