@@ -80,7 +80,7 @@ fn main() {
     let upper: u64 = args
         .next()
         .and_then(|x| x.parse().ok())
-        .expect("Give upper bound as first argument");
+        .expect("Give upper bound as second argument");
 
     let n_vecs = (upper - lower + 1).div_ceil(N as u64);
     let upper = lower + n_vecs * N as u64;
